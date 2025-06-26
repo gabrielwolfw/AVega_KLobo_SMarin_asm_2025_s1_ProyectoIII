@@ -10,24 +10,22 @@
 #define MAX_DISTANCE 50
 
 // Límites del servo (invertidos porque el servo está al revés)
-#define SERVO_ALTO 70     // Posición más alta (50 grados)
-#define SERVO_BAJO 120    // Posición más baja (135 grados)
+#define SERVO_ALTO 75     // Posición más alta (50 grados)
+#define SERVO_BAJO 118    // Posición más baja (135 grados)
 
 // Distancia mínima válida (cm)
 #define DISTANCIA_MIN 1.0
 //#define VALOR_SEGURO 50.0
-#define MAX_CAMBIO 2.0
-
-NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
+#define MAX_CAMBIO 5
 
 // Ganancias PID (ajusta estos valores según tu sistema)
-double Kp = 3.5;          // Ganancia proporcional
-double Ki = 1;         // Ganancia integral
-double Kd = 10.0;          // Ganancia derivativa
+double Kp = 2.5;          // Ganancia proporcional
+double Ki = 0.12;         // Ganancia integral
+double Kd = 0.7;          // Ganancia derivativa
 
 // Variables de posición y setPoint
 int pos = 95;             // Posición inicial del servo
-int setPoint = 10;        // Distancia objetivo inicial (cm)
+int setPoint;        // Distancia objetivo inicial (cm)
 float ultima_lectura_valida = setPoint;
 
 // Variables PID
@@ -58,8 +56,8 @@ void setup() {
 
 void loop() {
   // Leer el setPoint del potenciómetro (mapear de 10 a 40 cm)
-  //int potValue = analogRead(POT_PIN);
-  //setPoint = map(potValue, 0, 1023, 10, 40);
+  int potValue = analogRead(POT_PIN);
+  setPoint = map(potValue, 0, 1023, 10, 40);
   
   // Obtener la distancia del sensor ultrasónico
   float distancia = medirDistanciaControlada();
@@ -68,7 +66,7 @@ void loop() {
   outPut = calcularPID(distancia);
   
   // Mapear la salida del PID a los ángulos del servo (invertido)
-  pos = map(constrain(outPut, -5, 5), -5, 5, SERVO_ALTO, SERVO_BAJO);
+  pos = map(constrain(outPut, -58, 58), -58, 58, SERVO_ALTO, SERVO_BAJO);
   
   // Mover el servo
   myservo.write(pos);
@@ -151,7 +149,7 @@ double calcularPID(float input) {
   
   // Componente integral con límite para evitar wind-up
   cumError += error * elapsedTime;
-  cumError = constrain(cumError, -100, 100);
+  cumError = constrain(cumError, -130, 130);
   
   // Componente derivativa
   rateError = (error - lastError) / elapsedTime;
@@ -164,4 +162,21 @@ double calcularPID(float input) {
   previousTime = currentTime;
   
   return outPut;
+}
+
+int medirDistancia1() {
+  // Limpiar el pin TRIG
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  
+  // Enviar pulso de 10 microsegundos
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Leer el tiempo de eco
+  long duracion = pulseIn(ECHO_PIN, HIGH);
+  
+  // Calcular y devolver la distancia en cm
+  return duracion * 0.034 / 2;
 }
