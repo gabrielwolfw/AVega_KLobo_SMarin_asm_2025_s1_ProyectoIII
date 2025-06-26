@@ -15,9 +15,9 @@
 #define VALOR_SEGURO 50.0
 
 // Ganancias PID (ajusta estos valores según tu sistema)
-double Kp = 0.5;          // Ganancia proporcional
-double Ki = 0.01;         // Ganancia integral
-double Kd = 0.2;          // Ganancia derivativa
+double Kp = 3.5;          // Ganancia proporcional
+double Ki = 0.05;         // Ganancia integral
+double Kd = 0.01;          // Ganancia derivativa
 
 // Variables de posición y setPoint
 int pos = 110;             // Posición inicial del servo
@@ -41,7 +41,7 @@ void setup() {
   
   // Inicializar servo
   myservo.attach(SERVO_PIN);
-  myservo.write(90);
+  myservo.write(110);
   
   previousTime = millis();
   
@@ -61,18 +61,16 @@ void loop() {
   outPut = calcularPID(distancia);
   
   // Mapear la salida del PID a los ángulos del servo (invertido)
-  pos = map(constrain(outPut, -50, 50), -50, 50, SERVO_BAJO, SERVO_ALTO);
+  pos = map(constrain(outPut, -50, 50), -50, 50, SERVO_ALTO, SERVO_BAJO);
   
   // Mover el servo
   myservo.write(pos);
   
   // Imprimir valores para graficar
-  Serial.print("SetPoint: ");
   Serial.print(setPoint);
-  Serial.print(" cm | Distancia: ");
-  Serial.print(distancia);
-  Serial.print(" cm | Servo: ");
-  Serial.println(pos);
+  Serial.print(" ");
+  Serial.println(distancia);
+  delay(10);
   
 }
 
@@ -102,7 +100,7 @@ float medirDistancia() {
 
 double calcularPID(float input) {
   currentTime = millis();
-  elapsedTime = (currentTime - previousTime) / 1000.0; // Convertir a segundos
+  elapsedTime = (currentTime - previousTime); // Convertir a segundos
   
   if (elapsedTime <= 0) return outPut;
   

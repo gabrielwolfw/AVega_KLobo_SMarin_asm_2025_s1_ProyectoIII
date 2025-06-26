@@ -7,8 +7,8 @@
 #define POT_PIN A0        // Pin del potenciómetro
 
 // Límites del servo (invertidos porque el servo está al revés)
-#define SERVO_ALTO 50     // Posición más alta (50 grados)
-#define SERVO_BAJO 135    // Posición más baja (135 grados)
+#define SERVO_ALTO 70     // Posición más alta (50 grados)
+#define SERVO_BAJO 120    // Posición más baja (135 grados)
 
 // Distancia mínima válida (cm)
 #define DISTANCIA_MIN 1.0
@@ -17,7 +17,7 @@
 // Ganancias PID (ajusta estos valores según tu sistema)
 double Kp = 3.5;          // Ganancia proporcional
 double Ki = 0.05;         // Ganancia integral
-double Kd = 0.01;          // Ganancia derivativa
+double Kd = 1.0;          // Ganancia derivativa
 
 // Variables de posición y setPoint
 int pos = 110;             // Posición inicial del servo
@@ -51,8 +51,8 @@ void setup() {
 
 void loop() {
   // Leer el setPoint del potenciómetro (mapear de 10 a 40 cm)
-  int potValue = analogRead(POT_PIN);
-  setPoint = map(potValue, 0, 1023, 10, 40);
+  //int potValue = analogRead(POT_PIN);
+  //setPoint = map(potValue, 0, 1023, 10, 40);
   
   // Obtener la distancia del sensor ultrasónico
   float distancia = medirDistancia();
@@ -61,7 +61,7 @@ void loop() {
   outPut = calcularPID(distancia);
   
   // Mapear la salida del PID a los ángulos del servo (invertido)
-  pos = map(constrain(outPut, -50, 50), -50, 50, SERVO_ALTO, SERVO_BAJO);
+  pos = map(constrain(outPut, -20, 20), -20, 20, SERVO_ALTO, SERVO_BAJO);
   
   // Mover el servo
   myservo.write(pos);
