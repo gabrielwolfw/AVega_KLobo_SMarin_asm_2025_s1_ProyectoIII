@@ -74,29 +74,68 @@ void loop() {
   
 }
 
+float ultima_lectura_valida = VALOR_SEGURO;
+
+#define MAX_CAMBIO 5.0
+
 float medirDistancia() {
   // Limpiar el pin TRIG
   digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
+  delayMicroseconds(5);
   
   // Enviar pulso de 10 microsegundos
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   
-  // Leer el tiempo de eco
-  long duracion = pulseIn(ECHO_PIN, HIGH);
+  // Leer el tiempo de eco con timeout
+  long duracion = pulseIn(ECHO_PIN, HIGH, 30000);
+  
+  // Si hay timeout, devolver la última lectura válida
+  if (duracion == 0) {
+    return ultima_lectura_valida;
+  }
   
   // Calcular la distancia en cm
   float distancia = duracion * 0.0343 / 2;
   
-  // Validar distancia mínima
-  if (distancia < DISTANCIA_MIN || distancia > 400) {
-    return VALOR_SEGURO; // Devolver valor seguro si está fuera de rango
+  // Validar rango
+  if (distancia < DISTANCIA_MIN || distancia > DISTANCIA_MAX) {
+    return ultima_lectura_valida;
   }
   
   return distancia;
 }
+
+
+
+
+float medirDistanciaControlada() {
+  // Obtener nueva lectura
+  float nueva_lectura = medirDistancia();
+  
+  // Controlar cambios bruscos
+  if (abs(nueva_lectura - ultima_lectura_valida) > MAX_CAMBIO) {
+    // Si el cambio es demasiado grande, acercarse gradualmente
+    if (nueva_lectura > ultima_lectura_valida) {
+      nueva_lectura = ultima_lectura_valida + MAX_CAMBIO;
+    } else {
+      nueva_lectura = ultima_lectura_valida - MAX_CAMBIO;
+    }
+  }
+  
+  // Si la nueva lectura es 50 (valor tope) y la anterior era mucho menor,
+  // probablemente sea una lectura errónea, mantener el valor anterior
+  if (nueva_lectura >= DISTANCIA_MAX - 1 && ultima_lectura_valida < DISTANCIA_MAX/2) {
+    nueva_lectura = ultima_lectura_valida;
+  }
+  
+  // Actualizar la última lectura válida
+  ultima_lectura_valida = nueva_lectura;
+  
+  return nueva_lectura;
+}
+
 
 double calcularPID(float input) {
   currentTime = millis();

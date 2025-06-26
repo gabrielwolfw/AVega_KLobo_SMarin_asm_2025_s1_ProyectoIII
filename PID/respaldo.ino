@@ -1,3 +1,5 @@
+#include <NewPing.h>
+
 #include <Servo.h>
 
 // Pines
@@ -5,6 +7,7 @@
 #define TRIG_PIN 8        // Pin TRIG del HC-SR04
 #define ECHO_PIN 7        // Pin ECHO del HC-SR04
 #define POT_PIN A0        // Pin del potenciómetro
+#define MAX_DISTANCE 50
 
 // Límites del servo (invertidos porque el servo está al revés)
 #define SERVO_ALTO 70     // Posición más alta (50 grados)
@@ -12,16 +15,20 @@
 
 // Distancia mínima válida (cm)
 #define DISTANCIA_MIN 1.0
-#define VALOR_SEGURO 50.0
+//#define VALOR_SEGURO 50.0
+#define MAX_CAMBIO 2.0
+
+NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
 
 // Ganancias PID (ajusta estos valores según tu sistema)
 double Kp = 3.5;          // Ganancia proporcional
-double Ki = 0.05;         // Ganancia integral
-double Kd = 1.0;          // Ganancia derivativa
+double Ki = 1;         // Ganancia integral
+double Kd = 10.0;          // Ganancia derivativa
 
 // Variables de posición y setPoint
-int pos = 110;             // Posición inicial del servo
-int setPoint = 20;        // Distancia objetivo inicial (cm)
+int pos = 95;             // Posición inicial del servo
+int setPoint = 10;        // Distancia objetivo inicial (cm)
+float ultima_lectura_valida = setPoint;
 
 // Variables PID
 unsigned long currentTime, previousTime;
@@ -33,7 +40,7 @@ double outPut;
 Servo myservo;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   // Configurar pines del sensor
   pinMode(TRIG_PIN, OUTPUT);
@@ -41,7 +48,7 @@ void setup() {
   
   // Inicializar servo
   myservo.attach(SERVO_PIN);
-  myservo.write(110);
+  myservo.write(95);
   
   previousTime = millis();
   
@@ -55,13 +62,13 @@ void loop() {
   //setPoint = map(potValue, 0, 1023, 10, 40);
   
   // Obtener la distancia del sensor ultrasónico
-  float distancia = medirDistancia();
+  float distancia = medirDistanciaControlada();
   
   // Calcular la salida del PID
   outPut = calcularPID(distancia);
   
   // Mapear la salida del PID a los ángulos del servo (invertido)
-  pos = map(constrain(outPut, -20, 20), -20, 20, SERVO_ALTO, SERVO_BAJO);
+  pos = map(constrain(outPut, -5, 5), -5, 5, SERVO_ALTO, SERVO_BAJO);
   
   // Mover el servo
   myservo.write(pos);
@@ -77,26 +84,61 @@ void loop() {
 float medirDistancia() {
   // Limpiar el pin TRIG
   digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
+  delayMicroseconds(5);
   
   // Enviar pulso de 10 microsegundos
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   
-  // Leer el tiempo de eco
-  long duracion = pulseIn(ECHO_PIN, HIGH);
+  // Leer el tiempo de eco con timeout
+  long duracion = pulseIn(ECHO_PIN, HIGH, 30000);
+  
+  // Si hay timeout, devolver la última lectura válida
+  if (duracion == 0) {
+    return ultima_lectura_valida;
+  }
   
   // Calcular la distancia en cm
   float distancia = duracion * 0.0343 / 2;
   
-  // Validar distancia mínima
-  if (distancia < DISTANCIA_MIN || distancia > 400) {
-    return VALOR_SEGURO; // Devolver valor seguro si está fuera de rango
+  // Validar rango
+  if (distancia < DISTANCIA_MIN || distancia > MAX_DISTANCE) {
+    return ultima_lectura_valida;
   }
   
   return distancia;
 }
+
+
+
+
+float medirDistanciaControlada() {
+  // Obtener nueva lectura
+  float nueva_lectura = medirDistancia();
+  
+  // Controlar cambios bruscos
+  if (abs(nueva_lectura - ultima_lectura_valida) > MAX_CAMBIO) {
+    // Si el cambio es demasiado grande, acercarse gradualmente
+    if (nueva_lectura > ultima_lectura_valida) {
+      nueva_lectura = ultima_lectura_valida + MAX_CAMBIO;
+    } else {
+      nueva_lectura = ultima_lectura_valida - MAX_CAMBIO;
+    }
+  }
+  
+  // Si la nueva lectura es 50 (valor tope) y la anterior era mucho menor,
+  // probablemente sea una lectura errónea, mantener el valor anterior
+  if (nueva_lectura >= MAX_DISTANCE - 1 && ultima_lectura_valida < MAX_DISTANCE/2) {
+    nueva_lectura = ultima_lectura_valida;
+  }
+  
+  // Actualizar la última lectura válida
+  ultima_lectura_valida = nueva_lectura;
+  
+  return nueva_lectura;
+}
+
 
 double calcularPID(float input) {
   currentTime = millis();
